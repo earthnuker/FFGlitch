@@ -75,6 +75,7 @@
           pkgs.dockerTools.buildImage {
             name = "ffglitch";
             created = "now";
+            tag = "latest";
             copyToRoot = pkgs.buildEnv {
               name = "image-root";
               pathsToLink = ["/"];
