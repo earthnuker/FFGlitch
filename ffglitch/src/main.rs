@@ -2,11 +2,11 @@
 #![feature(exit_status_error, int_roundings)]
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
-    io::{BufRead as _, Write as _, BufReader, BufWriter},
+    io::{BufRead as _, BufReader, BufWriter, Write as _},
     num::NonZeroUsize,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Stdio,
     sync::OnceLock,
     time::{Duration, Instant},
 };
@@ -44,6 +44,9 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _, EnvFilter, Layer,
 };
 use wait_timeout::ChildExt as _;
+use wrapped_cmd::*;
+
+mod wrapped_cmd;
 
 const FFMPEG_IN_ARGS: &[&str] = &[
     "-loglevel",
@@ -558,7 +561,7 @@ impl Codec {
 }
 
 #[derive(Debug, Clone, Display, PartialEq, Eq, Serialize)]
-#[display( "{name} ({size} bit(s), {ncomp} component(s))")]
+#[display("{name} ({size} bit(s), {ncomp} component(s))")]
 struct PixFmt {
     name: String,
     size: usize,
@@ -1136,7 +1139,6 @@ fn get_frame_info(cmd: &mut Command) -> Result<FrameInfo> {
 }
 
 fn compute_scores(res: &mut GlitchResult, window: usize) -> Result<()> {
-    let mut cmd = Command::new("ffmpeg");
     let filtergraph: &[&[&str]] = &[
         &[
             "[0:v:0]setpts=PTS-STARTPTS",
@@ -1184,9 +1186,8 @@ fn compute_scores(res: &mut GlitchResult, window: usize) -> Result<()> {
         ],
     ];
     let filt = filtergraph.iter().map(|g| g.join(",")).join(";");
-
-    let cmd = cmd
-        .args(["-loglevel", "-repeat+level+info"])
+    let mut cmd = Command::new("ffmpeg");
+    cmd.args(["-loglevel", "-repeat+level+info"])
         .args(["-strict", "experimental"])
         .args(["-err_detect", "ignore_err"])
         .args(["-bug", "trunc"])
@@ -1201,7 +1202,7 @@ fn compute_scores(res: &mut GlitchResult, window: usize) -> Result<()> {
         .arg(&filt)
         .args(["-f", "null"])
         .arg("-");
-    let frame_info = get_frame_info(cmd)?;
+    let frame_info = get_frame_info(&mut cmd)?;
 
     // w_y + 2*w_uv = 1
     // 2*w_uv = w_y/2
@@ -1731,7 +1732,10 @@ fn aglitch(path: &Path) -> Result<GlitchResult> {
     let mut err = Ok(());
     for (proc, label, can_err) in procs.iter_mut() {
         let Some(res) = proc.wait_timeout(cfg.audio.max_encoding_time)? else {
-            error!("{label} timed out after {}!", cfg.audio.max_encoding_time.human_duration());
+            error!(
+                "{label} timed out after {}!",
+                cfg.audio.max_encoding_time.human_duration()
+            );
             for (mut proc, label, _) in procs {
                 drop(proc.stdin.take());
                 drop(proc.stdout.take());
@@ -2198,7 +2202,6 @@ async fn get_local_post() -> Result<MediaInfo> {
 }
 
 fn get_youtube_vid() -> Result<MediaInfo> {
-    use std::process::Command;
     #[derive(Deserialize)]
     struct YoutubeVid {
         id: String,
@@ -2292,9 +2295,9 @@ async fn post_status(res: &GlitchResult, t_start: Instant) -> Result<()> {
     let msg = format!("{res}").trim().to_owned();
     let mut stdout = std::io::stdout().lock();
     let mut stderr = std::io::stderr().lock();
-    writeln!(stderr,"==========")?;
-    writeln!(stderr,"{msg}")?;
-    writeln!(stderr,"==========")?;
+    writeln!(stderr, "==========")?;
+    writeln!(stderr, "{msg}")?;
+    writeln!(stderr, "==========")?;
     drop(stdout);
     drop(stderr);
     if t_start.elapsed() < cfg.interval {
