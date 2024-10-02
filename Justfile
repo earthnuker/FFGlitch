@@ -2,10 +2,11 @@ _default:
     just --list
 
 build:
-    du -h $(nom build --print-out-paths --no-link ".")
+    nom build --print-out-paths --no-link "."
+    du -h $(nix build --print-out-paths --no-link ".")
 
 load: build
-    docker load -q --input $(nom build --print-out-paths --no-link ".")
+    docker load -q --input $(nix build --print-out-paths --no-link ".")
     docker images
 
 run: load
