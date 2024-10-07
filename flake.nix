@@ -51,21 +51,13 @@
       buildInputs = [];
       ffglitch = craneLib.buildPackage {
         inherit buildInputs;
-        inherit
-          (craneLib.crateNameFromCargoToml {
-            cargoToml = ./ffglitch/Cargo.toml;
-          })
-          pname
-          version
-          ;
         src = craneLib.cleanCargoSource ./ffglitch;
         strictDeps = true;
         doCheck = false;
         nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux [pkgs.pkg-config];
       };
     in {
-      packages = let
-      in {
+      packages = {
         default = self.packages.${system}.docker;
         docker = let
           config_toml = pkgs.writeTextDir "config.toml" (builtins.readFile ./config.toml);
