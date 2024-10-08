@@ -2,7 +2,7 @@ _default:
     just --list
 
 build:
-    nom build --print-out-paths --no-link "."
+    nom build --no-link "."
     du -h $(nix build --print-out-paths --no-link ".")
 
 load: build
