@@ -14,12 +14,10 @@ def longer_than_a_minute(info, *, incomplete):
 
 
 def get_vid():
-    max_views = 100
 
     with YoutubeDL(
         {
             "playlistrandom": True,
-            "max_views": max_views,
             "max_filesize": 200 * 1024 * 1024,  # 200 MB
             "match_filter": longer_than_a_minute,
             "format": "bestvideo[width<=1000]",
@@ -31,13 +29,10 @@ def get_vid():
     ) as ytdl:
         while True:
             num = str(random.randint(0, 9999)).zfill(4)
-            tag = random.choice(["IMG", "DSC","MVI"])
-            info = ytdl.extract_info(f"ytsearch:{tag} {num}", process=False)
+            info = ytdl.extract_info(f"ytsearch:IMG_{num}", process=False)
             entries = list(info["entries"])
             random.shuffle(entries)
             for vid in entries:
-                if vid["view_count"] > max_views:
-                    continue
                 try:
                     meta = ytdl.extract_info(vid["id"], download=True)
                 except Exception as e:
